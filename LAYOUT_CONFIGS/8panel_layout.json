@@ -1,0 +1,19 @@
+{
+    "description": "The 8-panel layout for documents like QR-IFU-115 R0",
+    "panel_layout": {
+      "1": {"page": 0, "coords": [0.0, 0.0, 353.739990234375, 524.64599609375], "orientation": "portrait"},
+      "2": {"page": 0, "coords": [353.739990234375, 0.0,  707.47998046875, 524.64599609375], "orientation": "portrait"},
+      "3": {"page":1,  "coords": [0.0, 0.0, 338.34665934244794, 524.64599609375], "orientation": "portrait"},
+      "4": {"page":1,  "coords": [338.34665934244794, 0.0, 676.6933186848959, 524.64599609375], "orientation": "portrait"},
+      "5": {"page":1,  "coords": [676.6933186848959, 0.0, 1015.0399780273438, 524.64599609375], "orientation": "portrait"},
+      "6": {"page":2,  "coords": [0.0, 0.0, 338.34665934244794, 524.64599609375], "orientation": "portrait"},
+      "7": {"page":2,  "coords": [338.34665934244794, 0.0, 676.6933186848959, 524.64599609375], "orientation": "portrait"},
+      "8": {"page":2,  "coords": [676.6933186848959, 0.0, 1015.0399780273438, 524.64599609375], "orientation": "landscape"}
+    
+    },
+    "panel_types": {
+        "metadata": [1,2],
+        "title_page_en": [8],
+        "instructional_panels_en": [3,4,5,6,7]
+    }
+}

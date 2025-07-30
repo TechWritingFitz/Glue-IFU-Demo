@@ -1,0 +1,42 @@
+{
+    "description": "The 14-panel layout for documents like QR-IFU-122 R0",
+    "panel_layout": {
+      "1": {"page": 0, "coords": [0.0, 0.0, 353.739990234375, 515.64599609375], "orientation": "portrait"},
+      "2": {"page": 0, "coords": [353.739990234375, 0.0,  707.47998046875, 515.64599609375], "orientation": "portrait"},
+      "3": {"page":1,  "coords": [0.0, 0.0, 322.9533284505208, 515.64599609375], "orientation": "portrait"},
+      "4": {"page":1,  "coords": [322.9533284505208, 0.0, 645.9066569010416, 524.64599609375], "orientation": "portrait"},
+      "5": {"page":1,  "coords": [645.9066569010416, 0.0, 968.8599853515625, 524.64599609375], "orientation": "portrait"},
+      "6": {"page":1,  "coords": [968.8599853515625, 0.0, 1291.8133138020833, 524.64599609375], "orientation": "portrait"},
+      "7": {"page":1,  "coords": [1291.8133138020833, 0.0, 1614.766642252604, 524.64599609375], "orientation": "portrait"},
+      "8": {"page":1,  "coords": [1614.766642252604, 0.0, 1937.719970703125, 515.64599609375], "orientation": "portrait"},
+      "9": {"page":2,  "coords": [0.0, 0.0, 322.9533284505208, 515.64599609375], "orientation": "portrait"},
+      "10":{"page":2,  "coords": [322.9533284505208, 0.0, 645.9066569010416, 524.64599609375], "orientation": "portrait"},
+      "11":{"page":2,  "coords": [645.9066569010416, 0.0, 968.8599853515625, 524.64599609375], "orientation": "portrtait"},
+      "12":{
+            "page":2,  
+            "coords": [968.8599853515625, 0.0, 1291.8133138020833, 524.64599609375], 
+            "orientation": "portrait",
+            "columns": [
+              {"coords": [968, 0.0, 1100, 524]},
+              {"coords": [1100, 0.0, 1291, 524]}
+            ]
+          },
+      "13":{
+            "page":2,
+            "coords": [1291.8133138020833, 0.0, 1614.766642252604, 524.64599609375], 
+            "orientation": "portrait",
+            "columns": [
+              {"coords": [1291, 0.0, 1430, 524]},
+              {"coords": [1430, 0.0, 1614.766642252604, 524]}
+            ]
+          },
+      "14":{"page":2,  "coords": [1614.766642252604, 0.0, 1937.719970703125, 515.64599609375], "orientation": "landscape"}
+      
+    },
+    "panel_types": {
+        "metadata": [1,2],
+        "title_page_en": [14],
+        "instructional_panels_en": [3, 4, 5, 6, 7, 8, 9, 10, 11],
+        "regulatory_panels_en": [12, 13]
+    }
+}

@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stitch</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style> body { font-family: 'Inter', sans-serif; } </style>
+</head>
+<body class="bg-slate-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useCallback } = React;
+        const API_BASE_URL = '';
+
+        // ==================================================================
+        //  1. HELPER & REUSABLE COMPONENTS
+        // ==================================================================
+
+        const DiffRenderer = ({ sourceText, comparisonText, opcodes }) => {
+            const comparisonWords = comparisonText.split(/(\s+)/);
+            if (!opcodes) return <p>{comparisonText}</p>;
+            const segments = opcodes.map(([tag, i1, i2, j1, j2], index) => {
+                const comparisonSegment = comparisonWords.slice(j1, j2).join('');
+                if (tag === 'equal') return <span key={index} className="opacity-70">{comparisonSegment}</span>;
+                if (tag === 'insert') return <span key={index} className="bg-green-100 text-green-800 rounded px-1">{comparisonSegment}</span>;
+                if (tag === 'delete') return null;
+                if (tag === 'replace') return <span key={index} className="bg-yellow-100 text-yellow-800 rounded px-1">{comparisonSegment}</span>;
+                return null;
+            });
+            return <p className="leading-relaxed font-mono text-sm">{segments}</p>;
+        };
+
+        const DiffViewerModal = ({ isOpen, onClose, data, loading }) => {
+            if (!isOpen) return null;
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50" onClick={onClose}>
+                    <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                        <div className="p-6 border-b flex justify-between items-center"><h2 className="text-xl font-bold text-slate-800">Comparison Results</h2><button onClick={onClose} className="text-slate-500 hover:text-slate-800 text-2xl leading-none">&times;</button></div>
+                        <div className="p-6 overflow-y-auto">
+                            {loading && <div className="text-center p-8">Loading comparison data...</div>}
+                            {data && (
+                                <div>
+                                    <div className="mb-6 bg-slate-50 p-4 rounded-lg"><h3 className="font-bold text-slate-700">Source Panel: {data.sourcePanel.panel_type.replace(/_/g, ' ')}</h3><p className="mt-2 text-sm text-slate-600 whitespace-pre-wrap font-mono">{data.sourcePanel.content_text}</p></div>
+                                    <h3 className="font-bold text-slate-700 mb-4">Similar Panels Found:</h3>
+                                    <div className="space-y-4">
+                                        {data.comparisons.length > 0 ? data.comparisons.map((comp, index) => (
+                                            <div key={index} className="bg-white border p-4 rounded-lg">
+                                                <div className="flex justify-between items-baseline mb-2"><p className="font-semibold text-slate-800">{comp.part_number} ({comp.document_version})</p><span className="text-sm font-medium bg-blue-100 text-blue-800 px-2 py-1 rounded-full">Similarity: {(comp.similarity * 100).toFixed(2)}%</span></div>
+                                                <div className="mt-2 text-slate-600 bg-slate-50 p-3 rounded"><DiffRenderer sourceText={data.sourcePanel.content_text} comparisonText={comp.comparison_text} opcodes={comp.opcodes} /></div>
+                                            </div>
+                                        )) : <p>No significant similarities found in other documents.</p>}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                         <div className="p-4 bg-slate-50 border-t text-right"><button onClick={onClose} className="bg-slate-600 text-white font-bold py-2 px-4 rounded-md hover:bg-slate-700">Close</button></div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ==================================================================
+        //  2. VIEW & WORKBENCH COMPONENTS
+        // ==================================================================
+        
+        const RequestsView = ({ onRowClick }) => {
+            const [requests, setRequests] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            useEffect(() => {
+                fetch(`${API_BASE_URL}/api/requests`).then(res => res.ok ? res.json() : Promise.reject(new Error(res.statusText))).then(setRequests).catch(err => setError(err.message)).finally(() => setLoading(false));
+            }, []);
+            if (loading) return <div className="p-8 text-center">Loading requests...</div>;
+            if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
+            return (
+                <div className="p-8">
+                    <h2 className="text-2xl font-bold mb-6">Incoming Requests</h2>
+                    <div className="bg-white rounded-lg shadow overflow-hidden">
+                        <table className="min-w-full divide-y divide-slate-200">
+                            <thead className="bg-slate-50"><tr><th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Jira Key</th><th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Summary</th><th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Request Type</th><th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th><th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Created By</th><th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Date</th></tr></thead>
+                            <tbody className="bg-white divide-y divide-slate-200">{requests.map(req => (<tr key={req.request_id} onClick={() => onRowClick(req)} className="hover:bg-slate-100 cursor-pointer"><td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{req.jira_key || 'N/A'}</td><td className="px-6 py-4 whitespace-nowrap text-sm text-slate-800">{req.request_summary || req.part_number_to_update}</td><td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{req.request_type}</td><td className="px-6 py-4 whitespace-nowrap"><span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">{req.status}</span></td><td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{req.created_by}</td><td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">{new Date(req.created_at).toLocaleDateString()}</td></tr>))}</tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+
+        const SearchPanel = ({ onAddItems }) => {
+            const [searchTerm, setSearchTerm] = useState("");
+            const [searchResults, setSearchResults] = useState([]);
+            const [isSearching, setIsSearching] = useState(false);
+            const [selectedIndices, setSelectedIndices] = useState(new Set());
+            const handleSearch = async (e) => {
+                e.preventDefault();
+                if (!searchTerm.trim()) return;
+                setIsSearching(true);
+                setSearchResults([]);
+                setSelectedIndices(new Set());
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/search`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ searchTerm: searchTerm }) });
+                    if (!response.ok) throw new Error("Search request failed");
+                    const results = await response.json();
+                    setSearchResults(results);
+                } catch (error) { console.error("Search failed:", error); alert("Search failed. See console for details."); } finally { setIsSearching(false); }
+            };
+            const handleResultClick = (index) => {
+                const newSelection = new Set(selectedIndices);
+                if (newSelection.has(index)) { newSelection.delete(index); } else { newSelection.add(index); }
+                setSelectedIndices(newSelection);
+            };
+            const handleAddClick = () => {
+                const itemsToAdd = searchResults.filter((_, index) => selectedIndices.has(index));
+                onAddItems(itemsToAdd);
+                setSelectedIndices(new Set());
+            };
+            return (
+                <div className="bg-white p-4 rounded-lg shadow">
+                    <h4 className="font-semibold text-slate-800 mb-2">Search the Archive</h4>
+                    <form onSubmit={handleSearch}>
+                        <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="e.g., blood, sample, kit..." className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-md"/>
+                        <button type="submit" disabled={isSearching} className="w-full mt-2 bg-slate-600 text-white font-bold text-sm py-2 px-4 rounded-md hover:bg-slate-700 disabled:bg-slate-300">{isSearching ? 'Searching...' : 'Search'}</button>
+                    </form>
+                    <div className="mt-4 max-h-48 overflow-y-auto">{searchResults.length > 0 && (<ul className="space-y-2">{searchResults.map((result, index) => { const isSelected = selectedIndices.has(index); return (<li key={index} onClick={() => handleResultClick(index)} className={`text-xs p-2 border rounded-md cursor-pointer ${isSelected ? 'bg-blue-100 border-blue-300' : 'bg-slate-50'}`}><p className="font-bold">{result.part_number} ({result.document_version})</p><p className="text-slate-500 capitalize">{result.panel_type.replace(/_/g, ' ')}</p><p className="text-slate-600 mt-1 truncate">"{result.content_text}"</p></li>); })}</ul>)}</div>
+                    {selectedIndices.size > 0 && (<div className="mt-4"><button onClick={handleAddClick} className="w-full bg-blue-600 text-white font-bold text-sm py-2 px-4 rounded-md hover:bg-blue-700">Add {selectedIndices.size} item(s) to Template</button></div>)}
+                </div>
+            );
+        }
+
+        const WordProcessor = ({ onAddDraft }) => {
+            const [font, setFont] = useState('Inter');
+            const editorRef = React.useRef(null);
+            const applyStyle = (command, value = null) => {
+                document.execCommand(command, false, value);
+                editorRef.current.focus();
+            };
+            useEffect(() => { if(editorRef.current) { editorRef.current.style.fontFamily = font; } }, []);
+            const handleFontChange = (e) => {
+                const newFont = e.target.value;
+                setFont(newFont);
+                if(editorRef.current) { editorRef.current.style.fontFamily = newFont; }
+                applyStyle('fontName', newFont);
+            };
+            const handleAddClick = () => {
+                if (editorRef.current && editorRef.current.innerText.trim()) {
+                    onAddDraft({ panel_type: 'drafted_content', content_text: editorRef.current.innerText });
+                    editorRef.current.innerHTML = "";
+                }
+            };
+            return (
+                <div className="bg-white p-4 rounded-lg shadow mt-6">
+                    <h4 className="font-semibold text-slate-800 mb-2">Draft New Content</h4>
+                    <div className="flex items-center space-x-2 p-2 bg-slate-100 rounded-t-md border-b">
+                        <button onClick={() => applyStyle('bold')} className="px-3 py-1 text-sm font-bold rounded hover:bg-slate-200">B</button>
+                        <select value={font} onChange={handleFontChange} className="text-sm border-slate-300 rounded-md">
+                            <option value="Inter">Inter</option>
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                        </select>
+                    </div>
+                    <div ref={editorRef} contentEditable="true" className="w-full h-40 p-2 border border-t-0 rounded-b-md text-sm focus:outline-none" style={{ fontFamily: font }}></div>
+                    <button onClick={handleAddClick} className="w-full mt-2 bg-green-600 text-white font-bold text-sm py-2 px-4 rounded-md hover:bg-green-700">Add Draft to Template</button>
+                </div>
+            );
+        };
+
+        const TemplateArea = ({ items, onRemoveItem }) => (
+            <div className="bg-white p-6 rounded-lg shadow h-full">
+                <h4 className="font-semibold text-slate-800 mb-2">IFU Template</h4>
+                <div className="border-dashed border-2 border-slate-300 rounded-lg h-full p-4 space-y-2 overflow-y-auto">
+                    {items.length === 0 ? (<div className="flex items-center justify-center h-full"><p className="text-slate-400">Add content from the search panel or draft new content</p></div>) : (items.map((item, index) => (<div key={index} className="text-sm p-3 border rounded-md bg-green-50 relative"><p className="font-bold capitalize">{item.panel_type.replace(/_/g, ' ')}</p><p className="text-slate-600 mt-1 whitespace-pre-wrap pr-8">{item.content_text}</p><button onClick={() => onRemoveItem(index)} className="absolute top-1 right-1 text-slate-400 hover:text-slate-600 text-lg" title="Return to Archive">&times;</button></div>)))}
+                </div>
+            </div>
+        );
+
+        const ContentCreationView = ({ request }) => {
+    const [templateItems, setTemplateItems] = useState([]);
+    const handleAddToTemplate = (itemsToAdd) => { setTemplateItems(prevItems => [...prevItems, ...itemsToAdd]); };
+    const handleRemoveFromTemplate = (indexToRemove) => { setTemplateItems(prevItems => prevItems.filter((_, index) => index !== indexToRemove)); };
+    const handleAddDraftToTemplate = (draftedItem) => { setTemplateItems(prevItems => [...prevItems, draftedItem]); };
+
+    const handleSubmitForReview = async () => {
+        if (templateItems.length === 0) {
+            alert("Cannot submit an empty template for review.");
+            return;
+        }
+        try {
+            // This now passes the full original request object,
+            // ensuring the BOM data is carried forward.
+            const response = await fetch(`${API_BASE_URL}/api/drafts`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...request, // Pass all original request data
+                    content_panels: templateItems, // Add the new content
+                })
+            });
+            if (!response.ok) throw new Error("Failed to submit draft for review.");
+            alert("Template submitted successfully!");
+            setTemplateItems([]);
+        } catch (error) {
+            alert(error.message);
+        }
+    };
+
+    if (!request) { return (<div className="flex h-full items-center justify-center"><div className="text-center"><h2 className="text-xl font-semibold text-slate-700">Content Creation Workbench</h2><p className="mt-2 text-slate-500">Please select a task from the "Requests" tab to begin.</p></div></div>); }
+    
+    return (
+        <>
+            <div className="p-4 bg-white border-b sticky top-0 z-10 flex justify-between items-center">
+                <div>
+                    <h3 className="font-bold text-lg">{request.summary || 'N/A'}</h3>
+                    <div className="flex space-x-4 text-sm text-slate-600 mt-1">
+                        <span>Jira Key: <strong className="font-medium text-slate-800">{request.jira_key || 'N/A'}</strong></span>
+                        <span>|</span>
+                        <span>Status: <strong className="font-medium text-slate-800">{request.status}</strong></span>
+                        <span>|</span>
+                        <span>Created By: <strong className="font-medium text-slate-800">{request.created_by}</strong></span>
+                    </div>
+                </div>
+                <div>
+                    <button onClick={handleSubmitForReview} className="px-6 py-2 bg-purple-600 text-white font-bold rounded-md hover:bg-purple-700 disabled:bg-slate-300" disabled={templateItems.length === 0}>
+                        Submit for Review
+                    </button>
+                </div>
+            </div>
+            <div className="flex space-x-6 p-8">
+                <div className="w-1/3"><SearchPanel onAddItems={handleAddToTemplate} /><WordProcessor onAddDraft={handleAddDraftToTemplate} /></div>
+                <div className="w-2/3"><TemplateArea items={templateItems} onRemoveItem={handleRemoveFromTemplate} /></div>
+            </div>
+        </>
+    );
+};
+
+        
+        const FindCompareView = () => {
+            const [ifus, setIfus] = useState([]);
+            const [selectedIfu, setSelectedIfu] = useState(null);
+            const [ifuContent, setIfuContent] = useState([]);
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [searchTerm, setSearchTerm] = useState("");
+            const [isDiffModalOpen, setIsDiffModalOpen] = useState(false);
+            const [diffData, setDiffData] = useState(null);
+            const [modalLoading, setModalLoading] = useState(false);
+            useEffect(() => { setLoading(true); fetch(`${API_BASE_URL}/api/ifus`).then(res => res.json()).then(data => setIfus(data)).catch(() => setError("Failed to load IFU list.")).finally(() => setLoading(false)); }, []);
+            useEffect(() => { if (!selectedIfu) return; setLoading(true); fetch(`${API_BASE_URL}/api/ifu/${selectedIfu.id}`).then(res => res.json()).then(data => setIfuContent(data)).catch(() => setError("Failed to load IFU content.")).finally(() => setLoading(false)); }, [selectedIfu]);
+            const handleCompare = useCallback(async (panel) => { setIsDiffModalOpen(true); setModalLoading(true); try { const response = await fetch(`${API_BASE_URL}/api/compare`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: panel.content_text, panel_type: panel.panel_type }) }); const comparisonResults = await response.json(); setDiffData({ sourcePanel: panel, comparisons: comparisonResults }); } catch (e) { console.error("Failed to compare content:", e); } finally { setModalLoading(false); } }, []);
+            const filteredIfus = useMemo(() => { if (!searchTerm) return ifus; return ifus.filter(ifu => (ifu.part_number?.toLowerCase() || '').includes(searchTerm.toLowerCase()) || (ifu.document_version?.toLowerCase() || '').includes(searchTerm.toLowerCase())); }, [ifus, searchTerm]);
+            return (<div className="flex h-full"><div className="w-1/3 flex flex-col border-r bg-white"><div className="p-4 border-b"><h2 className="text-xl font-bold text-slate-900">IFU Browser</h2><input type="text" placeholder="Search Part Number..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full mt-4 px-3 py-2 text-sm bg-slate-100 border rounded-md"/></div><ul className="overflow-y-auto">{filteredIfus.map(ifu => (<li key={ifu.id} onClick={() => setSelectedIfu(ifu)} className={`p-4 cursor-pointer border-b ${selectedIfu?.id === ifu.id ? 'bg-blue-100' : 'hover:bg-slate-100'}`}><p className="font-semibold">{ifu.part_number} ({ifu.document_version})</p><p className="text-sm text-slate-500">{ifu.language}</p></li>))}</ul></div><div className="w-2/3 p-6 overflow-y-auto">{selectedIfu ? (<div className="space-y-4">{ifuContent.map(panel => (<div key={panel.panel_number} className="p-4 bg-white rounded-lg shadow relative"><h3 className="font-bold capitalize">{panel.panel_type.replace(/_/g, ' ')}</h3><pre className="mt-2 text-sm whitespace-pre-wrap font-sans">{panel.content_text}</pre><button onClick={() => handleCompare(panel)} className="absolute top-2 right-2 bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-1 rounded-full hover:bg-blue-200">Compare</button></div>))}</div>) : <div className="flex h-full items-center justify-center text-slate-500">Select an IFU from the Archive to view its content.</div>}</div>{isDiffModalOpen && <DiffViewerModal isOpen={isDiffModalOpen} onClose={() => setIsDiffModalOpen(false)} data={diffData} loading={modalLoading} />}</div>);
+        };
+
+        const ChecklistDetailView = ({ checklist, onApprove }) => {
+    const [readStatus, setReadStatus] = useState({});
+
+    useEffect(() => {
+        const initial = {};
+        if (checklist && Array.isArray(checklist.content_panels)) {
+            checklist.content_panels.forEach((p, index) => {
+                const key = p.panel_number !== undefined ? p.panel_number : index;
+                initial[key] = false;
+            });
+        }
+        setReadStatus(initial);
+    }, [checklist]);
+
+    const allRead = checklist && Array.isArray(checklist.content_panels) && checklist.content_panels.length > 0
+        ? Object.values(readStatus).every(status => status === true)
+        : false;
+    
+    const handlePanelClick = (key) => {
+        setReadStatus(currentStatus => ({ ...currentStatus, [key]: true }));
+    };
+
+    const MetadataItem = ({ label, value }) => (
+        <div className="bg-white p-4 rounded-lg shadow-sm">
+            <h4 className="font-semibold text-slate-500 text-sm">{label}</h4>
+            <p className="text-sm mt-1">{value || 'N/A'}</p>
+        </div>
+    );
+    
+    if (!checklist || typeof checklist !== 'object') {
+        return <div className="flex h-full items-center justify-center text-slate-500">Select a draft to review.</div>;
+    }
+
+    return (
+        <div>
+            <h2 className="font-bold text-2xl mb-2">{checklist.request_summary}</h2>
+            <p className="text-sm text-slate-500 mb-8">Draft #{checklist.draft_id} (Jira: {checklist.jira_key || 'N/A'})</p>
+
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                <MetadataItem label="Market" value={checklist.market} />
+                <MetadataItem label="Sample Type" value={checklist.sample_type} />
+                <MetadataItem label="Consumables" value={checklist.consumables} />
+            </div>
+
+            <div className="space-y-4 mt-4">
+                {checklist.content_panels && checklist.content_panels.length > 0 ? (
+                    checklist.content_panels.map((panel, index) => {
+                        const key = panel.panel_number !== undefined ? panel.panel_number : index;
+                        return (
+                             <div 
+                                key={key} 
+                                onClick={() => handlePanelClick(key)} 
+                                className={`p-4 rounded-lg border-2 cursor-pointer transition-colors duration-200 ${readStatus[key] ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}`}
+                             >
+                                <h4 className="font-bold capitalize">{panel.panel_type.replace(/_/g, ' ')}</h4>
+                                <pre className="whitespace-pre-wrap mt-2 text-sm">{panel.content_text}</pre>
+                            </div>
+                        );
+                    })
+                ) : (
+                    <div className="p-4 bg-yellow-100 border border-yellow-300 rounded-lg text-center">
+                        <p className="font-medium text-yellow-800">No content panels found for this draft.</p>
+                    </div>
+                )}
+            </div>
+            <div className="mt-8 flex justify-end">
+                <button 
+                    onClick={onApprove} 
+                    disabled={!allRead} 
+                    className="px-6 py-3 bg-blue-600 text-white font-bold rounded-md disabled:bg-slate-300 disabled:cursor-not-allowed"
+                    title={allRead ? "Approve this draft" : "Please review all panels before approving"}
+                >
+                    Approve
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const ChecklistReviewView = () => {
+    const [drafts, setDrafts] = useState([]);
+    const [selectedDraft, setSelectedDraft] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+
+    const fetchDrafts = () => {
+        setLoading(true);
+        fetch(`${API_BASE_URL}/api/drafts`)
+            .then(res => res.ok ? res.json() : Promise.reject(new Error(res.statusText)))
+            .then(data => {
+                if (Array.isArray(data)) { setDrafts(data); } 
+                else { throw new Error("Data from server is not an array."); }
+            })
+            .catch(err => { console.error(err); setError(err.message); })
+            .finally(() => setLoading(false));
+    };
+
+    useEffect(() => { fetchDrafts(); }, []);
+
+    const handleApprove = async () => {
+        if (!selectedDraft) return;
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/drafts/${selectedDraft.draft_id}/approve`, {
+                method: 'POST',
+            });
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Failed to approve the draft.");
+            }
+            alert(`Draft #${selectedDraft.draft_id} has been approved!`);
+            setDrafts(prev => prev.filter(d => d.draft_id !== selectedDraft.draft_id));
+            setSelectedDraft(null);
+        } catch (err) {
+            alert(err.message);
+            console.error(err);
+        }
+    };
+
+    if (loading) return <div className="p-8 text-center">Loading...</div>;
+    if (error) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
+
+    return (
+        <div className="flex h-full">
+            <div className="w-1/3 border-r overflow-y-auto">
+                <div className="p-4 font-bold border-b">Drafts Pending Review</div>
+                {drafts.length > 0 ? drafts.map((draft) => (
+                    <div 
+                        key={draft.draft_id}
+                        onClick={() => setSelectedDraft(draft)} 
+                        className={`p-4 cursor-pointer border-b ${selectedDraft?.draft_id === draft.draft_id ? 'bg-blue-100' : 'hover:bg-slate-100'}`}
+                    >
+                        <p className="font-semibold">{draft.request_summary || 'Untitled Draft'}</p>
+                        <p className="text-sm text-slate-500">Jira: {draft.jira_key || 'N/A'}</p>
+                    </div>
+                )) : <div className="p-4 text-sm text-slate-500">No drafts are currently pending review.</div>}
+            </div>
+            <div className="w-2/3 p-6 overflow-y-auto">
+                <ChecklistDetailView checklist={selectedDraft} onApprove={handleApprove} />
+            </div>
+        </div>
+    );
+};
+
+
+        // ==================================================================
+        //  3. MAIN APP SHELL
+        // ==================================================================
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('requests');
+            const [activeRequest, setActiveRequest] = useState(null);
+            const handleRequestSelect = (request) => {
+                setActiveRequest(request);
+                setActiveTab('creation');
+            };
+            return (
+                <div className="flex h-screen bg-white text-slate-800">
+                    <nav className="w-64 border-r border-slate-200 p-4 flex flex-col flex-shrink-0">
+                       <h1 className="text-2xl font-bold text-slate-900 mb-8">Stitch</h1>
+                       <ul className="space-y-2">
+                            <li><button onClick={() => setActiveTab('requests')} className={`w-full text-left px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'requests' ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>Requests</button></li>
+                            <li><button onClick={() => setActiveTab('creation')} className={`w-full text-left px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'creation' ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>Content Creation</button></li>
+                            <li><button onClick={() => setActiveTab('archive')} className={`w-full text-left px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'archive' ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>Archive</button></li>
+                            <li><button onClick={() => setActiveTab('review')} className={`w-full text-left px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'review' ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>Checklist Review</button></li>
+                       </ul>
+                    </nav>
+                    <main className="flex-1 bg-slate-50 overflow-y-auto">
+                        {activeTab === 'requests' && <RequestsView onRowClick={handleRequestSelect} />}
+                        {activeTab === 'creation' && <ContentCreationView request={activeRequest} />}
+                        {activeTab === 'archive' && <FindCompareView />}
+                        {activeTab === 'review' && <ChecklistReviewView />}
+                    </main>
+                </div>
+            );
+        };
+        
+        // ==================================================================
+        //  4. FINAL RENDER CALL
+        // ==================================================================
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
+

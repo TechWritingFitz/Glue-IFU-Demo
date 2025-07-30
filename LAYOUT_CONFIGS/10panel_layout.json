@@ -1,0 +1,31 @@
+{
+    "description": "The 10-panel layout for documents like QR-IFU-063 R1",
+    "panel_layout": {
+      "1": {"page": 0, "coords": [0.0, 0.0, 353.739990234375, 505.64599609375], "orientation": "portrait"},
+      "2": {"page": 0, "coords": [353.739990234375, 0.0,  707.47998046875, 505.64599609375], "orientation": "portrait"},
+      "3": {"page":1,  "coords": [0.0, 0.0, 330.6499938964844, 505.64599609375], "orientation": "portrait"},
+      "4": {"page":1,  "coords": [330.6499938964844, 0.0, 661.2999877929688, 524.64599609375], "orientation": "portrait"},
+      "5": {"page":1,  "coords": [661.2999877929688, 0.0, 991.9499816894531, 524.64599609375], "orientation": "portrait"},
+      "6": {"page":1,  "coords": [991.9499816894531, 0.0, 1322.5999755859375, 505.64599609375], "orientation": "portrait"},
+      "7": {"page":2,  "coords": [0.0, 0.0, 330.6499938964844, 505.64599609375], "orientation": "portrait"},
+      "8": {"page":2,  "coords": [330.6499938964844, 0.0, 661.2999877929688, 524.64599609375], "orientation": "portrait"},
+      "9": {
+          "page":2,  
+          "coords": [661.2999877929688, 0.0, 991.9499816894531, 505.64599609375],
+          "orientation": "portrait", 
+          "columns": [
+            {"coords": [661.2999877929688, 0.0, 815, 505]},
+            {"coords": [815, 0.0, 991.9499816894531, 505]}
+            ]
+          },
+      "10":{"page":2,  "coords": [991.9499816894531, 0.0, 1322.5999755859375, 505.64599609375], "orientation": "landscape"}
+      
+  },
+    "panel_types": {
+      "metadata": [1,2],
+      "title_page_en": [10],
+      "instructional_panels_en": [3,4,5,6,7,8],
+      "regulatory_panels_en": [9]
+    
+    }
+}
