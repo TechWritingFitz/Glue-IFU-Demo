@@ -21,33 +21,77 @@ def parse_jira_description(description_obj):
                     full_text.append(text_block['text'])
     return "\n".join(full_text)
 
-# --- Mock Data (replaces database) ---
-mock_ifu_documents = [
-    {"id": 1, "part_number": "LGC-001", "document_version": "v1.2", "language": "EN", 
-     "sample_type": '["Blood", "Serum"]', "kit_code": '["KIT001", "KIT002"]', 
-     "consumables": '["Test Tube", "Lancet", "Collection Card"]', "market": "US"},
-    {"id": 2, "part_number": "LGC-002", "document_version": "v1.1", "language": "EN",
-     "sample_type": '["Saliva"]', "kit_code": '["KIT003"]', 
-     "consumables": '["Saliva Tube", "Funnel"]', "market": "EU"},
-    {"id": 3, "part_number": "LGC-003", "document_version": "v2.0", "language": "EN",
-     "sample_type": '["Urine"]', "kit_code": '["KIT004"]', 
-     "consumables": '["Urine Cup", "Preservative"]', "market": "Global"}
-]
+# --- Real IFU Data (from extraction) ---
 
-mock_content_panels = [
-    {"id": 1, "document_id": 1, "panel_number": 1, "panel_type": "instructions", 
-     "content_text": "Wash your hands thoroughly with soap and water before handling the test kit. Ensure all materials are at room temperature."},
-    {"id": 2, "document_id": 1, "panel_number": 2, "panel_type": "warnings", 
-     "content_text": "For in vitro diagnostic use only. Do not use if package is damaged or expired."},
-    {"id": 3, "document_id": 1, "panel_number": 3, "panel_type": "collection", 
-     "content_text": "Use the provided lancet to prick your finger. Allow blood to drop onto the collection card until all circles are filled."},
-    {"id": 4, "document_id": 2, "panel_number": 1, "panel_type": "instructions", 
-     "content_text": "Collect saliva sample first thing in the morning before eating, drinking, or brushing teeth."},
-    {"id": 5, "document_id": 2, "panel_number": 2, "panel_type": "warnings", 
-     "content_text": "For in vitro diagnostic use only. Keep away from children. Store at room temperature."},
-    {"id": 6, "document_id": 3, "panel_number": 1, "panel_type": "collection", 
-     "content_text": "Collect first morning urine in the provided sterile container. Fill to the marked line."},
-]
+# Parse the extracted JSON data into our format
+real_ifu_data = {
+    "QR-IFU-123-R0": {"doc_title": "Blood Sample ImPress Investigation", "sample_type": "Blood", "market": "Demo"},
+    "QR-IFU-122-RA": {"doc_title": "Blood Sample ImPress", "sample_type": "Blood", "market": "US"},
+    "QR-IFU-098-R3": {"doc_title": "Blood ADX Home Sample Collection", "sample_type": "Blood", "market": "US"},
+    "QR-IFU-111-R2": {"doc_title": "Blood DBS and Urine Home Sample Collection", "sample_type": "Blood, Urine", "market": "US"},
+    "QR-IFU-094-R2": {"doc_title": "Blood and Urine Home Sample Collection", "sample_type": "Blood, Urine", "market": "US"},
+}
+
+mock_ifu_documents = []
+mock_content_panels = []
+panel_id = 1
+doc_id = 1
+
+# Sample of the most interesting content from your extracted data
+sample_content = {
+    1: {
+        "instructions": "Wash and dry your hands. If you are collecting the sample from someone else, the use of medical gloves is recommended. Remove the device and tube cap from the packaging. You will use the cap later to seal the sample in the blood collection tube.",
+        "warnings": "You must be over the age of 18 to use this device to self-collect a blood sample. Single use only. Not intended for more than one use. For use only on a single patient. Not for use on infant heels.",
+        "collection": "Clean the upper arm with an alcohol swab and allow to air-dry. Take note of the two fill lines on the tube. You will aim to fill to the top line with blood. Twist and remove the black tabs from the device."
+    },
+    2: {
+        "instructions": "You should be fasted when you collect your sample. This means not consuming any food or drink, other than water, for 8 hours before sample collection. Collect your sample in the morning Monday-Friday and return it on the same day.",
+        "warnings": "You must be over the age of 18 to use this sample collection kit. Failure to follow these instructions may impact the accuracy of your test results or cause sample to be rejected by the laboratory.",
+        "collection": "Fill in the label on the biohazard bag. Wash and dry your hands. The use of medical gloves is recommended. Remove the device and tube cap from the packaging."
+    },
+    3: {
+        "instructions": "Collect your sample in the morning and return on the same day. Plan your sample return in advance. Check the return delivery card in your kit for details.",
+        "warnings": "You must be over the age of 18 to use this sample collection kit. The sample and information provided must be your own. Test results may not be released to a third party.",
+        "collection": "Run your hands under warm water. Light exercise such as walking can help. Stay hydrated - drink water before you start. We recommend using your 4th (ring) finger on your non-dominant hand."
+    },
+    4: {
+        "instructions": "Consuming large amounts of protein before collecting your sample may impact your creatinine result by temporarily elevating it. Do not collect a sample if you are on your period (menstruating).",
+        "warnings": "You must be over the age of 18 to use this home sample collection kit. The samples and information provided must be your own. Some medication and supplements may impact your test result.",
+        "collection": "Open the collection cup by squeezing opposite corners. Pass a small amount of your urine into the toilet and then pass your urine into the collection cup until it is half full."
+    },
+    5: {
+        "instructions": "Consuming large amounts of protein before collecting your sample may impact your creatinine result. Follow the instructions for filling the urine tube carefully. Tubes that are too full may be rejected.",
+        "warnings": "You must be over the age of 18 to use this home sample collection kit. Do not pierce or collect blood from the smallest finger or any other body part not indicated in these instructions.",
+        "collection": "Use the pipette to slowly transfer your urine from the collection cup into the urine sample tube. Slowly add urine to the tube. Stop when the tube is about half full."
+    }
+}
+
+# Create documents and panels from real data
+for part_num, info in real_ifu_data.items():
+    mock_ifu_documents.append({
+        "id": doc_id,
+        "part_number": part_num,
+        "document_version": "R0" if "R0" in part_num else "R1",
+        "language": "EN",
+        "sample_type": f'["{info["sample_type"]}"]',
+        "kit_code": f'["{part_num}"]',
+        "consumables": '["Lancets", "Collection Tube", "Alcohol Swabs", "Bandages"]',
+        "market": info["market"]
+    })
+    
+    # Add content panels for this document
+    if doc_id in sample_content:
+        for panel_type, content in sample_content[doc_id].items():
+            mock_content_panels.append({
+                "id": panel_id,
+                "document_id": doc_id,
+                "panel_number": len([p for p in mock_content_panels if p["document_id"] == doc_id]) + 1,
+                "panel_type": panel_type,
+                "content_text": content
+            })
+            panel_id += 1
+    
+    doc_id += 1
 
 mock_requests = [
     {"request_id": 1, "request_type": "New IFU", "status": "Pending Content Review", 
