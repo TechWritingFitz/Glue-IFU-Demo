@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stitch</title>
+    <title>Glue</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
@@ -412,7 +412,7 @@ const ChecklistReviewView = () => {
             return (
                 <div className="flex h-screen bg-white text-slate-800">
                     <nav className="w-64 border-r border-slate-200 p-4 flex flex-col flex-shrink-0">
-                       <h1 className="text-2xl font-bold text-slate-900 mb-8">Stitch</h1>
+                       <h1 className="text-2xl font-bold text-slate-900 mb-8">Glue</h1>
                        <ul className="space-y-2">
                             <li><button onClick={() => setActiveTab('requests')} className={`w-full text-left px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'requests' ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>Requests</button></li>
                             <li><button onClick={() => setActiveTab('creation')} className={`w-full text-left px-4 py-2 rounded-md text-sm font-medium ${activeTab === 'creation' ? 'bg-blue-100 text-blue-700' : 'hover:bg-slate-100'}`}>Content Creation</button></li>
